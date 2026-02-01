@@ -1,0 +1,32 @@
+<Project>
+  <Import Project="$(ThisFileDirectory)build/build.props" />
+
+  <!-- Overrides and switches for build.props -->
+  <PropertyGroup>
+    <UseStyleCop>true</UseStyleCop>
+    <UseCodeAnalysis>true</UseCodeAnalysis>
+    <RootName>Microsoft.VsSaaS.Services</RootName>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <GitVersionBaseDirectory>$(MSBuildThisFileDirectory)</GitVersionBaseDirectory>
+  </PropertyGroup>
+
+  <!-- Package Versions -->
+  <PropertyGroup>
+    <Authors>Microsoft</Authors>
+    <Copyright>&#169; Microsoft Corporation. All rights reserved.</Copyright>
+    <Owners>Microsoft</Owners>
+    <RepositoryType>Git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/microsoft/dev-tunnels</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/microsoft/dev-tunnels</PackageProjectUrl>
+  </PropertyGroup>
+
+  <!-- Product Properties -->
+  <PropertyGroup>
+    <Product>DevTunnels Tunnel Service</Product>
+    <Tags>Microsoft;VSTunnels;DevTunnels</Tags>
+    <Title>DevTunnels Tunnel Service</Title>
+  </PropertyGroup>
+
+</Project>

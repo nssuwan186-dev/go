@@ -1,0 +1,16 @@
+Package: foo
+Version: 1.0.0
+Section: default
+Priority: extra
+Architecture: amd64
+License: MIT
+Maintainer: Carlos A Becker <pkg@carlosbecker.com>
+Installed-Size: 0
+Replaces: svn
+Pre-Depends: less
+Depends: bash
+Recommends: git
+Suggests: bash
+Conflicts: zsh
+Homepage: http://carlosbecker.com
+Description: Foo does things

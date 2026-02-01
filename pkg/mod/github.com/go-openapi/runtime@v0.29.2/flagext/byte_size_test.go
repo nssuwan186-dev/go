@@ -1,0 +1,47 @@
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
+
+package flagext
+
+import (
+	"testing"
+
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
+)
+
+func TestMarshalBytesize(t *testing.T) {
+	v, err := ByteSize(1024).MarshalFlag()
+	require.NoError(t, err)
+	assert.Equal(t, "1.024kB", v)
+}
+
+func TestStringBytesize(t *testing.T) {
+	v := ByteSize(2048).String()
+	assert.Equal(t, "2.048kB", v)
+}
+
+func TestUnmarshalBytesize(t *testing.T) {
+	var b ByteSize
+	err := b.UnmarshalFlag("notASize")
+	require.Error(t, err)
+
+	err = b.UnmarshalFlag("1MB")
+	require.NoError(t, err)
+	assert.Equal(t, ByteSize(1000000), b)
+}
+
+func TestSetBytesize(t *testing.T) {
+	var b ByteSize
+	err := b.Set("notASize")
+	require.Error(t, err)
+
+	err = b.Set("2MB")
+	require.NoError(t, err)
+	assert.Equal(t, ByteSize(2000000), b)
+}
+
+func TestTypeBytesize(t *testing.T) {
+	var b ByteSize
+	assert.Equal(t, "byte-size", b.Type())
+}

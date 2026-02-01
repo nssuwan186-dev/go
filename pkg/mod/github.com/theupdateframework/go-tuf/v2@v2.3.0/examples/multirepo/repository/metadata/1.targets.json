@@ -1,0 +1,34 @@
+{
+	"signatures": [
+		{
+			"keyid": "b779120edb45353d2a151004fe463ec6f10d90d83c0fa1c755e4e436e2ac8009",
+			"sig": "548ef3fb01c6def4b972444e05a5bc7a7c0e5750eb0c78dc04bd52997849185b3ec72a440157a467c42ff6dd63a808a047a0aee944855e319734bb927e9d7e05"
+		}
+	],
+	"signed": {
+		"_type": "targets",
+		"expires": "2034-09-30T11:29:58.187585Z",
+		"spec_version": "1.0.31",
+		"targets": {
+			"map.json": {
+				"hashes": {
+					"sha256": "562fc7cffe872542a430342995998546e3949dc3acbe7d37668dc76d657032ff"
+				},
+				"length": 596
+			},
+			"sigstore-tuf-root/root.json": {
+				"hashes": {
+					"sha256": "e2a930b2d1d4053dd56e8faf66fd113658545d522e35d222ccf58fea87ccccf4"
+				},
+				"length": 6388
+			},
+			"staging/root.json": {
+				"hashes": {
+					"sha256": "e2a930b2d1d4053dd56e8faf66fd113658545d522e35d222ccf58fea87ccccf4"
+				},
+				"length": 6388
+			}
+		},
+		"version": 1
+	}
+}

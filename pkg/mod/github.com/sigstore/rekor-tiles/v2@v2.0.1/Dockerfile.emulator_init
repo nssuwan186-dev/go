@@ -1,0 +1,21 @@
+#
+# Copyright 2025 The Sigstore Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+FROM gcr.io/google.com/cloudsdktool/google-cloud-cli:545.0.0-stable@sha256:3f8d865cc48811eff6162f8c9ce844da1d042182848e9a447cfd7e9c7c06455b
+
+ADD ./config/emulator_init.sh /root/
+RUN chmod +x /root/emulator_init.sh
+
+CMD ["/root/emulator_init.sh"]

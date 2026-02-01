@@ -1,0 +1,215 @@
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
+
+package validate
+
+import (
+	"testing"
+
+	"github.com/go-openapi/spec"
+	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
+)
+
+// Test edge cases in schema_props_validator which are difficult
+// to simulate with specs
+// (this one is a trivial, just to check all methods are filled)
+func TestSchemaPropsValidator_EdgeCases(t *testing.T) {
+	t.Run("should validate props against empty validator", func(t *testing.T) {
+		s := newSchemaPropsValidator(
+			"", "", nil, nil, nil, nil, nil, nil, strfmt.Default, nil)
+		s.SetPath("path")
+		assert.Equal(t, "path", s.Path)
+	})
+
+	t.Run("with allOf", func(t *testing.T) {
+		makeValidator := func() EntityValidator {
+			return newSchemaPropsValidator(
+				"path", "body",
+				[]spec.Schema{
+					*spec.StringProperty(),
+					*spec.StrFmtProperty("date"),
+				}, nil, nil, nil, nil, nil, strfmt.Default, &SchemaValidatorOptions{recycleValidators: true})
+		}
+
+		t.Run("should validate date string", func(t *testing.T) {
+			s := makeValidator()
+
+			const data = "2024-01-25"
+			res := s.Validate(data)
+			require.NotNil(t, res)
+			require.Empty(t, res.Errors)
+		})
+
+		t.Run("should NOT validate unformatted string", func(t *testing.T) {
+			s := makeValidator()
+
+			const data = "string_value"
+			res := s.Validate(data)
+			require.NotNil(t, res)
+			require.NotEmpty(t, res.Errors)
+		})
+
+		t.Run("should NOT validate number", func(t *testing.T) {
+			s := makeValidator()
+
+			const data = 1
+			res := s.Validate(data)
+			require.NotNil(t, res)
+			require.NotEmpty(t, res.Errors)
+		})
+	})
+
+	t.Run("with oneOf", func(t *testing.T) {
+		makeValidator := func() EntityValidator {
+			return newSchemaPropsValidator(
+				"path", "body",
+				nil,
+				[]spec.Schema{
+					*spec.Int64Property(),
+					*spec.StrFmtProperty("date"),
+				}, nil, nil, nil, nil, strfmt.Default, &SchemaValidatorOptions{recycleValidators: true})
+		}
+
+		t.Run("should validate date string", func(t *testing.T) {
+			s := makeValidator()
+
+			const data = "2024-01-01"
+			res := s.Validate(data)
+			require.NotNil(t, res)
+			require.Empty(t, res.Errors)
+		})
+
+		t.Run("should validate number", func(t *testing.T) {
+			s := makeValidator()
+
+			const data = 1
+			res := s.Validate(data)
+			require.NotNil(t, res)
+			require.Empty(t, res.Errors)
+		})
+	})
+
+	t.Run("with anyOf", func(t *testing.T) {
+		makeValidator := func() EntityValidator {
+			return newSchemaPropsValidator(
+				"path", "body",
+				nil,
+				nil,
+				[]spec.Schema{
+					*spec.StringProperty(),
+					*spec.StrFmtProperty("date"),
+				}, nil, nil, nil, strfmt.Default, &SchemaValidatorOptions{recycleValidators: true})
+		}
+
+		t.Run("should validate date string", func(t *testing.T) {
+			s := makeValidator()
+
+			const data = "2024-01-01"
+			res := s.Validate(data)
+			require.NotNil(t, res)
+			require.Empty(t, res.Errors)
+		})
+
+		t.Run("should validate unformatted string", func(t *testing.T) {
+			s := makeValidator()
+
+			const data = "string_value"
+			res := s.Validate(data)
+			require.NotNil(t, res)
+			require.Empty(t, res.Errors)
+		})
+	})
+
+	t.Run("with not", func(t *testing.T) {
+		makeValidator := func() EntityValidator {
+			return newSchemaPropsValidator(
+				"path", "body",
+				nil,
+				nil,
+				nil,
+				spec.StringProperty(),
+				nil, nil, strfmt.Default, &SchemaValidatorOptions{recycleValidators: true})
+		}
+
+		t.Run("should validate number", func(t *testing.T) {
+			s := makeValidator()
+
+			const data = 1
+			res := s.Validate(data)
+			require.NotNil(t, res)
+			require.Empty(t, res.Errors)
+		})
+
+		t.Run("should NOT validate string", func(t *testing.T) {
+			s := makeValidator()
+
+			const data = "string_value"
+			res := s.Validate(data)
+			require.NotNil(t, res)
+			require.NotEmpty(t, res.Errors)
+		})
+	})
+
+	t.Run("with nested schema props", func(t *testing.T) {
+		makeValidator := func() EntityValidator {
+			return newSchemaValidator(
+				&spec.Schema{
+					SchemaProps: spec.SchemaProps{
+						AllOf: []spec.Schema{
+							{
+								SchemaProps: spec.SchemaProps{
+									OneOf: []spec.Schema{
+										{
+											SchemaProps: spec.SchemaProps{
+												AnyOf: []spec.Schema{
+													{
+														SchemaProps: spec.SchemaProps{
+															Not: spec.StringProperty(),
+														},
+													},
+													*spec.BoolProperty(),
+												},
+											},
+										},
+										*spec.StringProperty(),
+									},
+								},
+							},
+							*spec.Int64Property(),
+						},
+					},
+				},
+				nil,
+				"root",
+				strfmt.Default, &SchemaValidatorOptions{recycleValidators: true})
+		}
+
+		t.Run("should validate number", func(t *testing.T) {
+			s := makeValidator()
+
+			const data = 1
+			res := s.Validate(data)
+			require.NotNil(t, res)
+			require.Empty(t, res.Errors)
+		})
+
+		t.Run("should NOT validate string", func(t *testing.T) {
+			s := makeValidator()
+
+			const data = "string_value"
+			res := s.Validate(data)
+			require.NotNil(t, res)
+			require.NotEmpty(t, res.Errors)
+		})
+
+		t.Run("should exit early and redeem children validator", func(t *testing.T) {
+			s := makeValidator()
+
+			res := s.Validate(nil)
+			require.NotNil(t, res)
+			require.Empty(t, res.Errors)
+		})
+	})
+}

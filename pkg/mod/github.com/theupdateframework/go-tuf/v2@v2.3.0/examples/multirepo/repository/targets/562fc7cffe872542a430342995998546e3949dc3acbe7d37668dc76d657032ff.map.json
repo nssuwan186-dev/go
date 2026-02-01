@@ -1,0 +1,27 @@
+
+{
+  "repositories": {
+    "sigstore-tuf-root": ["https://tuf-repo-cdn.sigstore.dev"],
+    "staging":   ["https://tuf-repo-cdn.sigstore.dev"]
+  },
+  "mapping": [
+    {
+      "paths":        ["fulcio*", "*.json"],
+      "repositories": ["staging"],
+      "threshold": 1,
+      "terminating":  true
+    },
+    {
+      "paths":        ["*.pub"],
+      "repositories": ["sigstore-tuf-root", "staging"],
+      "threshold": 2,
+      "terminating":  false
+    },
+    {
+      "paths":        ["*"],
+      "repositories": ["sigstore-tuf-root"],
+      "terminating": true,
+      "threshold": 1
+    }
+  ]
+}

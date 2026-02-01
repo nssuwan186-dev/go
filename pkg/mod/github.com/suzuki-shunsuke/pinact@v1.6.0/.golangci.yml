@@ -1,0 +1,20 @@
+---
+linters:
+  enable-all: true
+  disable:
+    - wsl
+    - err113
+    - lll
+    - godot
+    - nlreturn
+    - godox
+    - tagliatelle
+    - ireturn
+    - varnamelen
+    - exhaustive
+    - exhaustruct
+    - nonamedreturns
+    - musttag
+    - depguard
+    - tagalign
+    - tenv

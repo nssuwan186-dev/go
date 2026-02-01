@@ -1,0 +1,58 @@
+name: Docker image builds (pull requests)
+
+on:
+  pull_request:
+    branches: ["main"]
+
+env:
+  DOCKER_METADATA_SET_OUTPUT_ENV: "true"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-tags: true
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: build essential
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: '24.11.0'
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version: '1.25.4'
+
+      - uses: ko-build/setup-ko@d006021bd0c28d1ce33a07e7943d48b079944c8d # v0.9
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ghcr.io/${{ github.repository }}
+
+      - name: Build and push
+        id: build
+        run: |
+          npm ci
+          npm run container
+        env:
+          PULL_REQUEST_ID: ${{ github.event.number }}
+          DOCKER_REPO: ghcr.io/${{ github.repository }}
+          SLOG_LEVEL: debug
+
+      - run: |
+          echo "Test this with:"
+          echo "docker pull ${DOCKER_IMAGE}"
+        env:
+          DOCKER_IMAGE: ${{ steps.build.outputs.docker_image }}

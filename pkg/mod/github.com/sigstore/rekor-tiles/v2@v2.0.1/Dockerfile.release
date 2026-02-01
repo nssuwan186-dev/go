@@ -1,0 +1,42 @@
+#
+# Copyright 2025 The Sigstore Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Debian 12 (Bookworm) image to build binary for distroless/static-debian12
+FROM --platform=$BUILDPLATFORM golang:1.25.3-bookworm@sha256:4f43b271f9673eb7bd0cb3a49cc17b08d8d6ee110277e26dbacc93c43a5a7793 AS builder
+ARG TARGETOS
+ARG TARGETARCH
+ENV APP_ROOT=/opt/app-root
+ENV GOPATH=$APP_ROOT
+
+WORKDIR $APP_ROOT/src/
+ADD go.mod go.sum $APP_ROOT/src/
+RUN go mod download
+
+# Add source code
+ADD ./cmd/ $APP_ROOT/src/cmd/
+ADD ./pkg/ $APP_ROOT/src/pkg/
+ADD ./internal/ $APP_ROOT/src/internal/
+
+ARG SERVER_LDFLAGS
+# Build server for deployment. Build without cgo since distroless/static-debian12 doesn't include lib/cgo
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -ldflags "${SERVER_LDFLAGS}" ./cmd/rekor-server
+
+# Multi-stage deployment build
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:e8a4044e0b4ae4257efa45fc026c0bc30ad320d43bd4c1a7d5271bd241e386d0 AS deploy
+# Retrieve the binary from the previous stage
+COPY --from=builder /opt/app-root/src/rekor-server /usr/local/bin/rekor-server
+# Set the binary as the entrypoint of the container
+CMD ["rekor-server", "serve"]
+

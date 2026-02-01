@@ -1,0 +1,175 @@
+<Project>
+
+  <PropertyGroup>
+    <GitRoot>$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), '.gitignore'))\</GitRoot>
+    <SourceRoot>$(GitRoot)src\</SourceRoot>
+    <BuildScriptsDir>$(GitRoot)build\</BuildScriptsDir>
+    <Configuration Condition="'$(Configuration)'==''">Debug</Configuration>
+    <BaseOutputPath>$(GitRoot)bin\$(Configuration.ToLowerInvariant())\</BaseOutputPath>
+    <OutputPath>$(BaseOutputPath)$(MSBuildProjectName)\</OutputPath>
+    <PackageOutputPath>$(BaseOutputPath)nupkgs\</PackageOutputPath>
+    <SymbolsOutputPath>$(BaseOutputPath)sym\</SymbolsOutputPath>
+    <AppendTargetFrameworkToOutputPath Condition="'$(AppendTargetFrameworkToOutputPath)' == ''">false</AppendTargetFrameworkToOutputPath>
+    <BaseIntermediateOutputPath>$(GitRoot)bin\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <IsTraversal Condition="'$(MSBuildProjectFile)'=='dirs.proj'">true</IsTraversal>
+    <RootName Condition="'$(RootName)'==''">Microsoft.VsCloudKernel.Services</RootName>
+    <AssemblyName Condition="'$(AssemblyName)'==''">$(RootName).$(MSBuildProjectName)</AssemblyName>
+    <RootNamespace Condition="'$(RootNamespace)'==''">$(RootName).$(MSBuildProjectName)</RootNamespace>
+    <IsPublishable Condition="'$(IsPublishable)'==''" >false</IsPublishable>
+    <IsPackable Condition="'$(IsPackable)'==''" >false</IsPackable>
+    <!-- NU1608: Microsoft.Azure.Cosmos.Table 1.0.5 requires Microsoft.Azure.DocumentDB.Core (>= 2.1.3 && <= 2.4.2)
+         but version Microsoft.Azure.DocumentDB.Core 2.8.1 was resolved -->
+    <NoWarn>$(NoWarn);NU1608</NoWarn>
+    <TreatWarningsAsErrors Condition="'$(TreatWarningsAsErrors)' == ''">true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- Compiler options -->
+  <PropertyGroup>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <!-- NuGet Package Versions -->
+  <PropertyGroup>
+    <AltcoverVersion>8.9.3</AltcoverVersion>
+    <FluentAssertionsVersion>5.4.1</FluentAssertionsVersion>
+    <FxCopAnalyzersPackageVersion>3.3.0</FxCopAnalyzersPackageVersion>
+    <MicroBuildCoreVersion>0.3.0</MicroBuildCoreVersion>
+    <MicrosoftAspNetCoreWebUtilitiesPackageVersion>1.0.3</MicrosoftAspNetCoreWebUtilitiesPackageVersion>
+    <MicrosoftNETTestSdkVersion>15.8.0</MicrosoftNETTestSdkVersion>
+    <MoqVersion>4.9.0</MoqVersion>
+    <NerdBankGitVersioningVersion>3.6.133</NerdBankGitVersioningVersion>
+    <ReportGeneratorVersion>5.3.9</ReportGeneratorVersion>
+    <SystemTextEncodingsWebPackageVersion>4.7.2</SystemTextEncodingsWebPackageVersion>
+    <VisualStudioValidationVersion>15.5.31</VisualStudioValidationVersion>
+    <DevTunnelsSshPackageVersion>3.12.11</DevTunnelsSshPackageVersion>
+    <XunitRunnerVisualStudioVersion>2.4.0</XunitRunnerVisualStudioVersion>
+    <XunitVersion>2.4.0</XunitVersion>
+  </PropertyGroup>
+
+  <!-- Common project settings (except dirs.proj) -->
+  <Choose>
+    <When Condition="'$(IsTraversal)'!='true'">
+      <!-- Common Package Refs -->
+      <ItemGroup>
+        <PackageReference Include="MicroBuild.Core" Version="$(MicroBuildCoreVersion)" PrivateAssets="All" ExcludeAssets="Runtime" />
+        <PackageReference Include="Nerdbank.GitVersioning" Version="$(NerdBankGitVersioningVersion)" PrivateAssets="All" />
+        <PackageReference Condition="'$(UseVisualStudioValidation)'!='false'" Include="Microsoft.VisualStudio.Validation" Version="$(VisualStudioValidationVersion)" />
+      </ItemGroup>
+      <ItemGroup Condition="false">
+        <!-- All projects need to be rebuilt if the version changes. -->
+        <Content Include="$(MSBuildThisFileDirectory)\..\..\version.json" Link="version.json">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+          <Visible>false</Visible> <!-- Hide from VS solution explorer -->
+          <Pack>false</Pack> <!--Exclude from NuGet Packages -->
+        </Content>
+      </ItemGroup>
+    </When>
+  </Choose>
+
+  <!-- Test project settings -->
+  <PropertyGroup Condition="'$(IsTestProject)'==''">
+    <IsTestProject Condition="$(MSBuildProjectName.EndsWith('.Test'))">true</IsTestProject>
+    <IsTestProject Condition="$(MSBuildProjectName.EndsWith('.Test.Integration'))">true</IsTestProject>
+  </PropertyGroup>
+  <Choose>
+    <When Condition="'$(IsTestProject)'=='true'">
+      <PropertyGroup>
+        <IsPackable>false</IsPackable>
+        <EnableSigning>false</EnableSigning>
+        <UseStyleCop>false</UseStyleCop>
+        <UseCodeAnalysis>false</UseCodeAnalysis>
+        <TestBaseName>$(MSBuildProjectName.Replace('.Test', ''))</TestBaseName>
+        <TestResultsDirectory Condition=" '$(TestResultsDirectory)'==''">$(BaseOutputPath)testresults</TestResultsDirectory>
+        <VSTestResultsDirectory>$(TestResultsDirectory)</VSTestResultsDirectory>
+        <VSTestLogger>trx%3BLogFileName=$(TestBaseName).trx</VSTestLogger>
+        <!-- Test methods don't need to end with Async suffix. -->
+        <NoWarn>$(NoWarn);VSTHRD200</NoWarn>
+      </PropertyGroup>
+      <!-- AltCover properties -->
+      <PropertyGroup Condition=" '$(CodeCoverage)' == 'true' ">
+        <AltCover>true</AltCover>
+        <AltCoverReport>$(TestResultsDirectory)/$(TestBaseName)-coverage.xml</AltCoverReport>
+        <AltCoverAssemblyExcludeFilter>Interop|Test|xunit|AltCover|System.Reactive</AltCoverAssemblyExcludeFilter>
+        <AltCoverTypeFilter>ThisAssembly|System.Runtime|CodeAnalysis</AltCoverTypeFilter>
+        <AltCoverLcovReport>$(TestResultsDirectory)/$(TestBaseName)-lcov.info</AltCoverLcovReport>
+      </PropertyGroup>
+      <!-- Test packages -->
+      <ItemGroup>
+        <PackageReference Include="altcover" Version="$(AltcoverVersion)" />
+        <PackageReference Include="FluentAssertions" Version="$(FluentAssertionsVersion)" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="$(MicrosoftNETTestSdkVersion)" />
+        <PackageReference Include="Moq" Version="$(MoqVersion)" />
+        <PackageReference Include="ReportGenerator" Version="$(ReportGeneratorVersion)" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="$(XunitRunnerVisualStudioVersion)" />
+        <PackageReference Include="xunit" Version="$(XunitVersion)" />
+      </ItemGroup>
+    </When>
+  </Choose>
+
+  <!-- StyleCop -->
+  <Choose>
+    <When Condition="'$(UseStyleCop)'=='true'">
+      <ItemGroup>
+        <AdditionalFiles Include="$(MSBuildThisFileDirectory)stylecop.json" >
+          <Visible>false</Visible> <!-- Hide from VS solution explorer -->
+        </AdditionalFiles>
+        <Content Remove="$(MSBuildThisFileDirectory)stylecop.json" />
+        <PackageReference Include="StyleCop.Analyzers" Version="$(StyleCopAnalyzersPackageVersion)">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+      </ItemGroup>
+    </When>
+  </Choose>
+
+  <!-- Code Analysis -->
+  <Choose>
+    <When Condition="'$(UseCodeAnalysis)'=='true'">
+      <PropertyGroup>
+        <CodeAnalysisRuleSet Condition="'$(CodeAnalysisRuleSet)'==''">$(MSBuildThisFileDirectory)CodeAnalysis.ruleset</CodeAnalysisRuleSet>
+        <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
+      </PropertyGroup>
+      <ItemGroup>
+        <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="$(FxCopAnalyzersPackageVersion)">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+      </ItemGroup>
+    </When>
+  </Choose>
+
+  <!-- Signing Options-->
+  <Choose>
+    <When Condition="'$(EnableSigning)' == 'true'">
+      <!-- Common signing props-->
+      <PropertyGroup>
+        <SignAssembly>true</SignAssembly>
+        <PublicKey>002400000480000094000000060200000024000052534131000400000100010007d1fa57c4aed9f0a32e84aa0faefd0de9e8fd6aec8f87fb03766c834c99921eb23be79ad9d5dcc1dd9ad236132102900b723cf980957fc4e177108fc607774f29e8320e92ea05ece4e821c0a5efe8f1645c4c0c93c1ab99285d622caa652c1dfad63d745d6f2de5f17e5eaf0fc4963d261c8a12436518206dc093344d5ad293</PublicKey>
+        <PublicKeyToken>b03f5f7f11d50a3a</PublicKeyToken>
+        <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)PublicKey.snk</AssemblyOriginatorKeyFile>
+      </PropertyGroup>
+      <!-- Delay signing -->
+      <PropertyGroup Condition="'SignType' != ''">
+        <DelaySign>true</DelaySign>
+      </PropertyGroup>
+      <!-- Public signing -->
+      <PropertyGroup Condition="'SignType' == ''">
+        <PublicSign>true</PublicSign>
+      </PropertyGroup>
+      <!-- Target to sign -->
+      <ItemGroup>
+        <FilesToSign Include="$(TargetPath)" Condition=" '$(TargetPath)' != '' " >
+          <Authenticode>Microsoft400</Authenticode>
+          <StrongName>StrongName</StrongName>
+        </FilesToSign>
+      </ItemGroup>
+    </When>
+  </Choose>
+
+  <!-- Packaging config -->
+  <PropertyGroup>
+    <!-- Disable warning about generating semver 2.0 package versions. We don't need to support legacy NuGet clients. -->
+    <NoWarn>$(NoWarn);NU5105</NoWarn>
+  </PropertyGroup>
+
+</Project>

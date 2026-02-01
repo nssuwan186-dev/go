@@ -1,0 +1,27 @@
+name: "contents foo"
+arch: "amd64"
+version: "v1.2.3"
+contents:
+  - src: "./testdata/*.conf"
+    dst: "/etc/foo/"
+    type: "config|noreplace"
+    file_info:
+      mode: 0644
+  - src: "./testdata/whatever2.conf"
+    dst: "/etc/rpm/whatever.conf"
+    type: "config|noreplace"
+    packager: "rpm"
+    file_info:
+      mode: 0644
+  - src: "./testdata/whatever2.conf"
+    dst: "/etc/apk/whatever.conf"
+    type: "config|noreplace"
+    packager: "apk"
+    file_info:
+      mode: 0644
+  - src: "./testdata/whatever2.conf"
+    dst: "/etc/deb/whatever.conf"
+    type: "config|noreplace"
+    packager: "deb"
+    file_info:
+      mode: 0644

@@ -1,0 +1,94 @@
+project_name: timestamp-authority
+
+version: 2
+
+env:
+  - GO111MODULE=on
+  - CGO_ENABLED=0
+  - DOCKER_CLI_EXPERIMENTAL=enabled
+  - COSIGN_YES=true
+
+# Prevents parallel builds from stepping on eachothers toes downloading modules
+before:
+  hooks:
+    - go mod tidy
+    - /bin/bash -c 'if [ -n "$(git --no-pager diff --exit-code go.mod go.sum)" ]; then exit 1; fi'
+
+gomod:
+  proxy: true
+
+sboms:
+  - artifacts: binary
+
+builds:
+  - id: timestamp-server
+    binary: timestamp-server-linux-{{ .Arch }}
+    no_unique_dist_dir: true
+    main: ./cmd/timestamp-server
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 7
+    flags:
+      - -trimpath
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    ldflags:
+      - "{{ .Env.LDFLAGS }}"
+
+  - id: timestamp-cli
+    binary: timestamp-cli-{{ .Os }}-{{ .Arch }}
+    no_unique_dist_dir: true
+    main: ./cmd/timestamp-cli
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 7
+    ignore:
+      - goos: windows
+        goarch: arm64
+    flags:
+      - -trimpath
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    ldflags:
+      - "{{ .Env.LDFLAGS }}"
+
+signs:
+  # Keyless
+  - id: keyless
+    signature: "${artifact}-keyless.sigstore.json"
+    cmd: cosign
+    args: ["sign-blob", "--bundle", "${signature}", "${artifact}"]
+    artifacts: binary
+  - id: checksum-keyless
+    signature: "${artifact}-keyless.sigstore.json"
+    cmd: cosign
+    args: ["sign-blob", "--bundle", "${signature}", "${artifact}"]
+    artifacts: checksum
+
+archives:
+  - formats: [ "binary" ]
+    name_template: "{{ .Binary }}"
+    allow_different_binary_count: true
+
+checksum:
+  name_template: "{{ .ProjectName }}_checksums.txt"
+
+snapshot:
+  version_template: SNAPSHOT-{{ .ShortCommit }}
+
+release:
+  prerelease: auto
+  draft: true # allow for manual edits
+  github:
+    owner: sigstore
+    name: timestamp-authority

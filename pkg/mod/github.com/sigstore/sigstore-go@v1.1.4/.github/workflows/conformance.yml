@@ -1,0 +1,54 @@
+# Copyright 2023 The Sigstore Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Conformance Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: '0 19 * * 1,4' # US work hours
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version-file: go.mod
+
+      - run: go mod download
+
+      - run: go build -o conformance test/conformance/main.go
+
+      - uses: sigstore/sigstore-conformance@b7856cfca56fe3f957d4cefdc2c359cc36a84e14 # v0.0.24
+        with:
+          entrypoint: ${{ github.workspace }}/conformance
+
+      - uses: sigstore/sigstore-conformance@b7856cfca56fe3f957d4cefdc2c359cc36a84e14 # v0.0.24
+        with:
+          entrypoint: ${{ github.workspace }}/conformance
+          environment: staging

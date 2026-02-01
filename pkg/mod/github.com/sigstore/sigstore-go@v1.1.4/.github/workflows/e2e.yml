@@ -1,0 +1,66 @@
+# Copyright 2025 The Sigstore Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: "E2E tests"
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Free up disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          
+          sudo rm -rf /host_usr/share/dotnet || true
+          sudo rm -rf /host_usr/share/swift || true
+          sudo rm -rf /host_usr/local/lib/android || true
+          sudo rm -rf /host_usr/local/.ghcup || true
+          sudo rm -rf /host_usr/local/graalvm/ || true
+          sudo rm -rf /host_usr/local/share/powershell || true
+          sudo rm -rf /host_usr/local/share/chromium || true
+          sudo rm -rf /host_usr/local/lib/node_modules || true
+          sudo rm -rf /host_usr/lib/google-cloud-sdk || true
+          sudo rm -rf /host_usr/local/share/boost || true
+          sudo rm -rf /host_opt/hostedtoolcache/ || true
+          sudo rm -rf /host_opt/ghc || true
+
+          ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}
+          sudo rm -rf "$ANDROID_SDK_ROOT" || true
+          sudo rm -rf /usr/local/share/android-sdk || true
+
+          echo "Disk space after cleanup:"
+          df -h
+      - name: Install Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version-file: go.mod
+      - name: Set up Sigstore
+        uses: sigstore/scaffolding/actions/setup-sigstore-env@main
+      - name: Run e2e tests
+        run: go test -v -tags=e2e ./test/e2e

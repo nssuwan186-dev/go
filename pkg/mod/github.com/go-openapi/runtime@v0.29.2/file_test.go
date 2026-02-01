@@ -1,0 +1,32 @@
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
+
+package runtime
+
+import (
+	"testing"
+
+	"github.com/go-openapi/spec"
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
+	"github.com/go-openapi/validate"
+)
+
+func TestValidateFile(t *testing.T) {
+	fileParam := spec.FileParam("f")
+	validator := validate.NewParamValidator(fileParam, nil)
+
+	result := validator.Validate("str")
+	require.Len(t, result.Errors, 1)
+	assert.Equal(
+		t,
+		`f in formData must be of type file: "string"`,
+		result.Errors[0].Error(),
+	)
+
+	result = validator.Validate(&File{})
+	assert.True(t, result.IsValid())
+
+	result = validator.Validate(File{})
+	assert.True(t, result.IsValid())
+}

@@ -1,0 +1,311 @@
+# A build file for rpmpack.
+# For running basic build/run/test you can also use the regular go tools,
+# this is currently added to assist in external testing.
+
+load("@rpmpack//:def.bzl", "pkg_tar2rpm")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("//:testing.bzl", "docker_diff")
+
+CENTOS_IMAGE = "centos@sha256:365fc7f33107869dfcf2b3ba220ce0aa42e16d3f8e8b3c21d72af1ee622f0cf0"
+
+FEDORA_IMAGE = "fedora@sha256:3f3fc6a4714e44fae9147bc2b9542ac627491c13c4a3375e5066bdddc7710c9e"
+
+pkg_tar(
+    name = "rpmtest-tar",
+    srcs = [":content1.txt"],
+    mode = "0644",
+    ownername = "root.root",
+    package_dir = "var/lib/rpmpack",
+)
+
+pkg_tar(
+    name = "rpmtest-tar-otherdir",
+    srcs = [":content1.txt"],
+    mode = "0644",
+    ownername = "root.root",
+    package_dir = "/doesnot/exist/rpmpack",
+)
+
+pkg_tar(
+    name = "rpmtest-tar-bothdirs",
+    mode = "0644",
+    ownername = "root.root",
+    deps = [
+        ":rpmtest-tar",
+        ":rpmtest-tar-otherdir",
+    ],
+)
+
+pkg_tar2rpm(
+    name = "rpmtest",
+    data = ":rpmtest-tar",
+    epoch = 42,
+    pkg_name = "rpmtest",
+    prein = "echo \"This is preinst\" > /tmp/preinst.txt",
+    release = "3.4",
+    version = "1.2",
+)
+
+pkg_tar2rpm(
+    name = "rpmtest_with_prefixes",
+    data = ":rpmtest-tar",
+    dir_allowlist_file = ":allowlist_var_lib_rpmpack.txt",
+    epoch = 42,
+    pkg_name = "rpmtest_with_prefixes",
+    prefixes = ["/var/lib"],
+    release = "3.4",
+    use_dir_allowlist = True,
+    version = "1.2",
+)
+
+pkg_tar2rpm(
+    name = "rpmtest_withtime",
+    build_time = "17",
+    data = ":rpmtest-tar",
+    pkg_name = "rpmtest_withtime",
+    version = "1.2",
+)
+
+pkg_tar2rpm(
+    name = "rpmtest_bothdirs",
+    data = ":rpmtest-tar-bothdirs",
+    epoch = 42,
+    pkg_name = "rpmtest_bothdirs",
+    release = "3.4",
+    version = "1.2",
+)
+
+pkg_tar2rpm(
+    name = "rpmtest_withoutbothdirs",
+    data = ":rpmtest-tar-bothdirs",
+    pkg_name = "rpmtest_withoutbothdirs",
+    use_dir_allowlist = True,
+    version = "1.2",
+)
+
+pkg_tar2rpm(
+    name = "rpmtest_withonlyonedir",
+    data = ":rpmtest-tar-bothdirs",
+    dir_allowlist_file = ":dir_allowlist.txt",
+    pkg_name = "rpmtest_withonlyonedir",
+    use_dir_allowlist = True,
+    version = "1.2",
+)
+
+pkg_tar(
+    name = "rpms",
+    srcs = [
+        ":rpmtest.rpm",
+        ":rpmtest_bothdirs",
+        ":rpmtest_with_prefixes",
+        ":rpmtest_withonlyonedir",
+        ":rpmtest_withoutbothdirs",
+        ":rpmtest_withtime",
+    ],
+)
+
+docker_diff(
+    name = "centos_V",
+    cmd = "echo ===marker===  && rpm -i /root/rpmtest.rpm && rpm -Vv rpmtest",
+    golden = """
+.........    /var
+.........    /var/lib
+.........    /var/lib/rpmpack
+.........    /var/lib/rpmpack/content1.txt""",
+    image = CENTOS_IMAGE,
+    tar = ":rpms",
+)
+
+docker_diff(
+    name = "centos_ls",
+    cmd = "echo ===marker===  && rpm -i /root/rpmtest.rpm && ls -l /var/lib/rpmpack",
+    golden = """
+total 4
+-rw-r--r-- 1 root root 22 Jan  1  2000 content1.txt""",
+    image = CENTOS_IMAGE,
+    tar = ":rpms",
+)
+
+docker_diff(
+    name = "centos_preinst",
+    cmd = "echo ===marker===  && rpm -i /root/rpmtest.rpm && cat /tmp/preinst.txt",
+    golden = "This is preinst",
+    image = CENTOS_IMAGE,
+    tar = ":rpms",
+)
+
+docker_diff(
+    name = "centos_epoch",
+    cmd = "echo ===marker===  && rpm -i /root/rpmtest.rpm && rpm -q rpmtest --queryformat '%{EPOCH}\n'",
+    golden = "42",
+    image = CENTOS_IMAGE,
+    tar = ":rpms",
+)
+
+pkg_tar(
+    name = "rpmsample_tar",
+    srcs = [
+        "@rpmpack//cmd/rpmsample",
+    ],
+)
+
+docker_diff(
+    name = "centos_rpmsample_signed",
+    cmd = "echo ===marker=== && /root/rpmsample -sign > /root/rpmsample.rpm && rpm --nosignature -i /root/rpmsample.rpm && rpm --nosignature -q rpmsample --queryformat '%{SIGPGP}\n'",
+    # "74686973206973206e6f742061207369676e6174757265" is "this is not a signature" in hex.
+    golden = "74686973206973206e6f742061207369676e6174757265",
+    image = CENTOS_IMAGE,
+    tar = ":rpmsample_tar",
+)
+
+docker_diff(
+    name = "centos_rpmsample_ghost_provides",
+    cmd = "echo ===marker=== && /root/rpmsample > /root/rpmsample.rpm && rpm -i /root/rpmsample.rpm && rpm -q --whatprovides /var/lib/rpmpack/sample4_ghost.txt",
+    golden = "rpmsample-0.1-A.noarch",
+    image = CENTOS_IMAGE,
+    tar = ":rpmsample_tar",
+)
+
+docker_diff(
+    name = "centos_rpmsample_ghost_not_on_fs",
+    cmd = "echo ===marker=== && /root/rpmsample > /root/rpmsample.rpm && rpm -i /root/rpmsample.rpm && ls /var/lib/rpmpack",
+    golden = """
+sample.txt
+sample2.txt
+sample3_link.txt
+""",
+    image = CENTOS_IMAGE,
+    tar = ":rpmsample_tar",
+)
+
+docker_diff(
+    name = "centos_rpmsample_directory_doesnotexist",
+    cmd = "echo ===marker=== && /root/rpmsample > /root/rpmsample.rpm && rpm -i /root/rpmsample.rpm && cat /var/lib/thisdoesnotexist/sample.txt",
+    golden = """
+testsample
+""",
+    image = CENTOS_IMAGE,
+    tar = ":rpmsample_tar",
+)
+
+docker_diff(
+    name = "fedora_V",
+    cmd = "echo ===marker===  && rpm -i /root/rpmtest.rpm && rpm -Vv rpmtest",
+    golden = """
+.........    /var
+.........    /var/lib
+.........    /var/lib/rpmpack
+.........    /var/lib/rpmpack/content1.txt""",
+    image = FEDORA_IMAGE,
+    tar = ":rpms",
+)
+
+docker_diff(
+    name = "fedora_epoch",
+    base = "fedora_with_rpm",
+    cmd = "echo ===marker===  && rpm -i /root/rpmtest.rpm && rpm -q rpmtest --queryformat '%{EPOCH}\n'",
+    golden = "42",
+    image = FEDORA_IMAGE,
+    tar = ":rpms",
+)
+
+pkg_tar(
+    name = "rpmmetatest-tar",
+)
+
+pkg_tar2rpm(
+    name = "rpmmetatest",
+    data = ":rpmmetatest-tar",
+    epoch = 42,
+    pkg_name = "rpmmetatest",
+    release = "3.4",
+    requires = ["bash"],
+    version = "1.2",
+)
+
+pkg_tar(
+    name = "rpmmeta",
+    srcs = [
+        ":rpmmetatest.rpm",
+    ],
+)
+
+docker_diff(
+    name = "centos_meta_deps",
+    cmd = "echo ===marker=== && rpm -i /root/rpmmetatest.rpm && rpm -qpR /root/rpmmetatest.rpm",
+    golden = "bash",
+    image = CENTOS_IMAGE,
+    tar = ":rpmmeta",
+)
+
+docker_diff(
+    name = "centos_with_prefixes_meta",
+    cmd = "echo ===marker=== && rpm -i /root/rpmtest_with_prefixes.rpm && rpm -q rpmtest_with_prefixes --queryformat '%{PREFIXES}\n'",
+    golden = "/var/lib",
+    image = CENTOS_IMAGE,
+    tar = ":rpms",
+)
+
+docker_diff(
+    name = "centos_with_prefixes_ls",
+    cmd = "echo ===marker=== && rpm -i --prefix=/opt /root/rpmtest_with_prefixes.rpm && rpm -Vv rpmtest_with_prefixes",
+    golden = """
+.........    /opt/rpmpack
+.........    /opt/rpmpack/content1.txt""",
+    image = CENTOS_IMAGE,
+    tar = ":rpms",
+)
+
+docker_diff(
+    name = "centos_empty_timestamp",
+    cmd = "echo ===marker=== && rpm -i /root/rpmtest.rpm && rpm -q rpmtest --queryformat '%{BUILDTIME}\n'",
+    golden = "(none)",
+    image = CENTOS_IMAGE,
+    tar = ":rpms",
+)
+
+docker_diff(
+    name = "centos_with_timestamp",
+    cmd = "echo ===marker=== && rpm -i /root/rpmtest_withtime.rpm && rpm -q rpmtest_withtime --queryformat '%{BUILDTIME}\n'",
+    golden = "17",
+    image = CENTOS_IMAGE,
+    tar = ":rpms",
+)
+
+docker_diff(
+    name = "centos_bothdirs",
+    cmd = "echo ===marker===  && rpm -i --force /root/rpmtest_bothdirs.rpm && rpm -Vv rpmtest_bothdirs",
+    golden = """
+.........    /doesnot
+.........    /doesnot/exist
+.........    /doesnot/exist/rpmpack
+.........    /doesnot/exist/rpmpack/content1.txt
+.........    /var
+.........    /var/lib
+.........    /var/lib/rpmpack
+.........    /var/lib/rpmpack/content1.txt""",
+    image = CENTOS_IMAGE,
+    tar = ":rpms",
+)
+
+docker_diff(
+    name = "centos_withoutbothdirs",
+    cmd = "echo ===marker===  && rpm -i /root/rpmtest_withoutbothdirs.rpm && rpm -Vv rpmtest_withoutbothdirs",
+    golden = """
+.........    /doesnot/exist/rpmpack/content1.txt
+.........    /var/lib/rpmpack/content1.txt""",
+    image = CENTOS_IMAGE,
+    tar = ":rpms",
+)
+
+docker_diff(
+    name = "centos_withonlyonedir",
+    cmd = "echo ===marker===  && rpm -i /root/rpmtest_withonlyonedir.rpm && rpm -Vv rpmtest_withonlyonedir",
+    golden = """
+.........    /doesnot/exist
+.........    /doesnot/exist/rpmpack
+.........    /doesnot/exist/rpmpack/content1.txt
+.........    /var/lib/rpmpack/content1.txt""",
+    image = CENTOS_IMAGE,
+    tar = ":rpms",
+)

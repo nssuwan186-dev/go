@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Microsoft.DevTunnels.Contracts</RootNamespace>
+    <AssemblyName>Microsoft.DevTunnels.Contracts</AssemblyName>
+    <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+    <IsPackable>true</IsPackable>
+    <UseVsSaaSSdk>false</UseVsSaaSSdk>
+    <UseVisualStudioValidation>false</UseVisualStudioValidation>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
+  </PropertyGroup>
+
+  <!--
+    Note: Need to explictly include GetTargetPath as dotnet pack with the no-build flag fails without it
+  -->
+  <Target Name="GetTargetPath" Returns="@(_FakeOutputPath)">
+    <ItemGroup>
+      <_FakeOutputPath Include="$(MSBuildProjectDirectory)\$(PackageOutputPath)\$(AssemblyName).UNK" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference
+      Condition="'$(TargetFramework)'=='net6.0'"
+      Include="..\..\tools\TunnelsSDK.Generator\TunnelsSDK.Generator.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

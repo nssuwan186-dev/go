@@ -1,0 +1,16 @@
+version: "2"
+linters:
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: golang.org/x/net/context
+            - pkg: github.com/gogo/protobuf/proto
+    gocyclo:
+      min-complexity: 25
+  exclusions:
+    generated: lax
+formatters:
+  exclusions:
+    generated: lax

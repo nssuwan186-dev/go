@@ -1,0 +1,27 @@
+---
+# the configuration file of cmdx - task runner
+# https://github.com/suzuki-shunsuke/cmdx
+tasks:
+- name: test
+  short: t
+  description: test
+  usage: test
+  script: go test ./... -covermode=atomic
+- name: coverage
+  short: c
+  description: show test coverage
+  usage: show test coverage
+  script: |
+    set -eu
+    go test ./... -race -coverprofile=.coverage.txt -covermode=atomic
+    go tool cover -html=.coverage.txt
+- name: vet
+  short: v
+  description: go vet
+  usage: go vet
+  script: go vet ./...
+- name: lint
+  short: l
+  description: lint the go code
+  usage: lint the go code
+  script: golangci-lint run

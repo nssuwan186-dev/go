@@ -1,0 +1,73 @@
+// Copyright 2024 The Sigstore Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package sign
+
+import (
+	"crypto"
+	"crypto/ecdsa"
+	"testing"
+	"time"
+
+	"github.com/sigstore/sigstore-go/pkg/root"
+	"github.com/sigstore/sigstore/pkg/cryptoutils"
+	"github.com/sigstore/sigstore/pkg/signature"
+	"github.com/stretchr/testify/assert"
+)
+
+func Test_Bundle(t *testing.T) {
+	content := &PlainData{Data: []byte("qwerty")}
+	opts := BundleOptions{}
+
+	// Test requiring Keypair
+	bundle, err := Bundle(content, nil, opts)
+	assert.Nil(t, bundle)
+	assert.NotNil(t, err)
+
+	// Test minimal happy path
+	keypair, err := NewEphemeralKeypair(nil)
+	assert.Nil(t, err)
+	bundle, err = Bundle(content, keypair, opts)
+	assert.NotNil(t, bundle)
+	assert.Nil(t, err)
+
+	pubKeyPem, err := keypair.GetPublicKeyPem()
+	assert.NoError(t, err)
+	pubKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKeyPem))
+	assert.NoError(t, err)
+	opts.TrustedRoot = trustedPublicKeyMaterial(pubKey)
+
+	// Test signing and verification succeeds
+	bundle, err = Bundle(content, keypair, opts)
+	assert.NotNil(t, bundle)
+	assert.Nil(t, err)
+}
+
+type nonExpiringVerifier struct {
+	signature.Verifier
+}
+
+func (*nonExpiringVerifier) ValidAtTime(_ time.Time) bool {
+	return true
+}
+
+func trustedPublicKeyMaterial(pk crypto.PublicKey) *root.TrustedPublicKeyMaterial {
+	return root.NewTrustedPublicKeyMaterial(func(string) (root.TimeConstrainedVerifier, error) {
+		verifier, err := signature.LoadECDSAVerifier(pk.(*ecdsa.PublicKey), crypto.SHA256)
+		if err != nil {
+			return nil, err
+		}
+		return &nonExpiringVerifier{verifier}, nil
+	})
+}

@@ -1,0 +1,45 @@
+steps:
+- task: NodeTool@0
+  displayName: 'Use Node 18.x'
+  inputs:
+    versionSpec: 18.x
+
+- task: Npm@1
+  displayName: 'Restore npm packages'
+  inputs:
+    workingDir: ts
+
+- task: Npm@1
+  displayName: Compile
+  inputs:
+    command: custom
+    workingDir: ts
+    customCommand: 'run compile'
+
+- task: Npm@1
+  displayName: Lint
+  inputs:
+    command: custom
+    workingDir: ts
+    customCommand: 'run eslint'
+
+- task: Npm@1
+  displayName: Build
+  inputs:
+    command: custom
+    workingDir: ts
+    customCommand: 'run build'
+
+- task: Npm@1
+  displayName: Run unit tests
+  inputs:
+    command: custom
+    workingDir: ts
+    customCommand: 'run test'
+
+- task: Npm@1
+  displayName: Pack
+  inputs:
+    command: custom
+    workingDir: ts
+    customCommand: 'run pack --release'

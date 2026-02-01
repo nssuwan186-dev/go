@@ -1,0 +1,51 @@
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
+
+package runtime
+
+import (
+	"bytes"
+	"io"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
+)
+
+var consProdJSON = `{"name":"Somebody","id":1}`
+
+type eofRdr struct {
+}
+
+func (r *eofRdr) Read(_ []byte) (int, error) {
+	return 0, io.EOF
+}
+
+func TestJSONConsumer(t *testing.T) {
+	cons := JSONConsumer()
+	var data struct {
+		Name string
+		ID   int
+	}
+	err := cons.Consume(bytes.NewBufferString(consProdJSON), &data)
+	require.NoError(t, err)
+	assert.Equal(t, "Somebody", data.Name)
+	assert.Equal(t, 1, data.ID)
+
+	err = cons.Consume(new(eofRdr), &data)
+	require.Error(t, err)
+}
+
+func TestJSONProducer(t *testing.T) {
+	prod := JSONProducer()
+	data := struct {
+		Name string `json:"name"`
+		ID   int    `json:"id"`
+	}{Name: "Somebody", ID: 1}
+
+	rw := httptest.NewRecorder()
+	err := prod.Produce(rw, data)
+	require.NoError(t, err)
+	assert.Equal(t, consProdJSON+"\n", rw.Body.String())
+}

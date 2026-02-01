@@ -1,0 +1,11 @@
+name: VM Actions matrix
+description: VM Actions matrix template
+
+runs:
+  using: composite
+  steps:
+    - uses: ${VMACTIONS}
+      with:
+        usesh: true
+        copyback: false
+        run: . ./test.sh

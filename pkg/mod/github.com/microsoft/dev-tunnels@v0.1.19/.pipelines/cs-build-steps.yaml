@@ -1,0 +1,50 @@
+parameters:
+- name: Pdb2PdbExe
+  type: string
+  default: ''
+
+steps:
+- task: UseDotNet@2
+  displayName: "Install DotNet SDK"
+  inputs:
+    packageType: 'sdk'
+    workingDirectory: 'cs'
+    performMultiLevelLookup: true
+    useGlobalJson: true
+
+- task: NuGetAuthenticate@1
+  displayName: 'NuGet Authenticate'
+
+- task: DotNetCoreCLI@2
+  displayName: "DotNet Restore"
+  inputs:
+    command: 'restore'
+    workingDirectory: 'cs'
+    projects: 'cs/TunnelsSDK.sln'
+    nugetConfigPath: 'cs/NuGet.config'
+    verbosityRestore: 'Minimal'
+    feedsToUse: 'config'
+
+- task: DotNetCoreCLI@2
+  displayName: "DotNet Build"
+  inputs:
+    command: 'build'
+    workingDirectory: 'cs'
+    projects: 'cs/TunnelsSDK.sln'
+    arguments: '-v:n --no-restore -c Release -p:EnableSigning="$(enableSigning)" -p:SignType="$(signType)" -p:Pdb2PdbExe="${{ parameters.Pdb2PdbExe }}"'
+
+- task: DotNetCoreCLI@2
+  displayName: "DotNet Test"
+  inputs:
+    command: 'test'
+    workingDirectory: 'cs'
+    projects: 'cs/TunnelsSDK.sln'
+    publishTestResults: true
+    arguments: '-v:n -c release -p:CodeCoverage=true --no-build'
+
+- task: PublishCodeCoverageResults@2
+  displayName: 'Publish code coverage'
+  inputs:
+    codeCoverageTool: Cobertura
+    summaryFileLocation: cs/bin/release/testresults/coverage/TunnelsSDK/Cobertura.xml
+    failIfCoverageEmpty: true
